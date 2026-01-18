@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alteration Done List</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --maroon: #800000;
+            --gold: #D4AF37;
+            --cream: #F5F5DC;
+            --white: #FFFFFF;
+            --dark: #1a1a1a;
+            --green: #2e7d32;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--cream); margin: 0; padding: 0; color: #333; height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+
+        /* --- LOGIN --- */
+        #login-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark); z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
+        .login-card { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 350px; text-align: center; border-top: 5px solid var(--maroon); position: relative; }
+        .login-input { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; outline: none; background: #f9f9f9; }
+        .btn-main { background: var(--maroon); color: white; border: none; width: 100%; padding: 14px; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .console-box { margin-top: 20px; background: black; color: #00ff00; width: 100%; max-width: 350px; height: 100px; padding: 10px; font-family: monospace; font-size: 11px; overflow-y: auto; border: 1px solid #333; border-radius: 6px; text-align: left; }
+
+        /* SETTINGS BTN */
+        #settings-btn { position: absolute; top: 10px; right: 10px; background: white; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); font-size: 18px; cursor: pointer; border: 1px solid var(--maroon); color: var(--maroon); }
+
+        /* --- HEADER --- */
+        header { background: var(--maroon); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 1000; }
+        .app-title { font-weight: 900; font-size: 16px; letter-spacing: 1px; }
+        
+        .status-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: bold; background: rgba(0,0,0,0.3); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); }
+        .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #ff4444; border: 1px solid white; transition: 0.3s; }
+        .status-dot.online { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+        .online-text { color: #ccffcc; }
+
+        /* --- MAIN LIST --- */
+        #main-view { flex: 1; padding: 15px; overflow-y: auto; display: none; padding-bottom: 50px; }
+        
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .sec-title { font-size: 14px; font-weight: 900; color: var(--green); text-transform: uppercase; display: flex; align-items: center; gap: 5px; }
+        
+        /* New Pending Button */
+        .pending-btn { background: #333; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        /* READY CARDS */
+        .ready-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 6px solid var(--green); animation: fadeIn 0.3s ease; position: relative; }
+        .rc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px dashed #eee; padding-bottom: 8px; }
+        .bill-no { font-size: 18px; font-weight: 900; color: #333; }
+        .status-tag { background: var(--green); color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; letter-spacing: 1px; }
+        .rc-body { font-size: 12px; color: #555; line-height: 1.5; font-weight: 600; }
+        .rc-footer { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0f0; text-align: right; }
+        .countdown { font-family: monospace; font-size: 10px; color: #ff4444; font-weight: bold; background: #fff5f5; padding: 2px 6px; border-radius: 4px; display: inline-block; }
+
+        /* --- PENDING POPUP STYLES --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 7000; flex-direction: column; }
+        .modal-header { background: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 15px; background: var(--cream); }
+
+        /* Pending Job Card (Same Style as Altervise) */
+        .job-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 6px solid #ccc; display: flex; justify-content: space-between; align-items: center; animation: fadeIn 0.3s ease; }
+        
+        .tint-red { background: #ffebee; border-left-color: #d32f2f; }
+        .tint-orange { background: #fff3e0; border-left-color: #ef6c00; }
+        .tint-green { background: #e8f5e9; border-left-color: #2e7d32; }
+
+        .job-info h3 { margin: 0; font-size: 18px; color: #333; }
+        .job-date { font-size: 12px; font-weight: bold; color: #555; margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+        .days-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 900; background: rgba(255,255,255,0.8); border: 1px solid rgba(0,0,0,0.1); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body>
+
+    <div id="login-view">
+        <div class="login-card">
+            <div id="settings-btn" onclick="if(prompt('Code:')==='5563990')document.getElementById('settings-modal').style.display='flex'">⚙️</div>
+            <h2 style="color:var(--maroon);">SALESMAN VIEW</h2>
+            <p style="font-size:12px; color:grey;">Ready Alterations Only</p>
+            <input type="email" id="login-email" class="login-input" placeholder="Staff Email">
+            <input type="password" id="login-pass" class="login-input" placeholder="Password">
+            <button class="btn-main" onclick="handleLogin()">LOGIN</button>
+        </div>
+        <div class="console-box" id="sys-console">System Booting...</div>
+    </div>
+
+    <div id="settings-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:8000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:20px; border-radius:10px; width:90%; max-width:300px;">
+            <h3>Config</h3>
+            <input type="text" id="conf-url" class="login-input" placeholder="URL">
+            <input type="text" id="conf-key" class="login-input" placeholder="Key">
+            <button class="btn-main" onclick="saveConfig()">SAVE</button>
+            <button onclick="document.getElementById('settings-modal').style.display='none'" style="width:100%; margin-top:10px; border:none; background:none; color:red;">Close</button>
+        </div>
+    </div>
+
+    <header id="app-header" style="display:none;">
+        <div class="app-title">ROYAL ALTERATION</div>
+        <div class="status-badge">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">OFFLINE</span>
+        </div>
+        <button onclick="logout()" style="background:none; border:none; color:white; font-weight:bold;">LOGOUT</button>
+    </header>
+
+    <div id="main-view">
+        <div class="section-header">
+            <div class="sec-title"><i class="ri-checkbox-circle-fill"></i> READY FOR PICKUP</div>
+            
+            <div style="display:flex; gap:10px;">
+                <button class="pending-btn" onclick="openPending()">
+                    <i class="ri-time-line"></i> CHECK PENDING
+                </button>
+                <button onclick="loadReadyWork()" style="background:none; border:none; color:var(--maroon); font-size:20px;"><i class="ri-refresh-line"></i></button>
+            </div>
+        </div>
+
+        <div id="ready-list">
+            <div style="text-align:center; color:#999; margin-top:50px;">Loading...</div>
+        </div>
+    </div>
+
+    <div id="pending-modal" class="modal">
+        <div class="modal-header">
+            <h3 style="margin:0; color:#333;">MASTER JI PENDING LIST</h3>
+            <button onclick="closePending()" style="background:none; border:none; font-size:24px;">✕</button>
+        </div>
+        <div class="modal-body" id="pending-list-container">
+            </div>
+    </div>
+
+    <script>
+        let supabaseClient;
+        const DELETE_DAYS = 15;
+
+        // --- BACK SWIPE PROTECTION ---
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () {
+            if (document.getElementById('pending-modal').style.display === 'flex') {
+                closePending();
+                history.pushState(null, null, location.href); // Stay on page
+            } else {
+                history.pushState(null, null, location.href); // Prevent exit
+            }
+        };
+
+        // --- NETWORK ---
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        function updateNetworkStatus() {
+            const d=document.getElementById('status-dot'), t=document.getElementById('status-text');
+            if(navigator.onLine){d.classList.add('online');t.innerText='ONLINE';t.classList.add('online-text');}
+            else{d.classList.remove('online');t.innerText='OFFLINE';t.classList.remove('online-text');}
+        }
+        function log(msg) { document.getElementById('sys-console').innerHTML += `<div>> ${msg}</div>`; }
+
+        // --- INIT ---
+        window.onload = function() {
+            updateNetworkStatus();
+            const u=localStorage.getItem('rs-url'), k=localStorage.getItem('rs-key');
+            if(u&&k){ supabaseClient=supabase.createClient(u,k); log("DB Connected"); checkSession(); }
+            else log("No Config Found.");
+        };
+
+        function saveConfig() { localStorage.setItem('rs-url', document.getElementById('conf-url').value); localStorage.setItem('rs-key', document.getElementById('conf-key').value); location.reload(); }
+        async function handleLogin() {
+            const e=document.getElementById('login-email').value, p=document.getElementById('login-pass').value;
+            const {error}=await supabaseClient.auth.signInWithPassword({email:e, password:p});
+            if(!error) checkSession(); else alert(error.message);
+        }
+        async function checkSession() {
+            const {data}=await supabaseClient.auth.getSession();
+            if(data.session) {
+                document.getElementById('login-view').style.display='none';
+                document.getElementById('app-header').style.display='flex';
+                document.getElementById('main-view').style.display='block';
+                runCleanup(); 
+                loadReadyWork();
+            }
+        }
+        async function logout() { await supabaseClient.auth.signOut(); location.reload(); }
+
+        // --- CORE LOGIC ---
+        
+        async function runCleanup() {
+            const dateLimit = new Date();
+            dateLimit.setDate(dateLimit.getDate() - DELETE_DAYS);
+            await supabaseClient.from('alteration_tickets').delete().eq('status', 'DONE').lt('completed_at', dateLimit.toISOString());
+        }
+
+        async function loadReadyWork() {
+            const list = document.getElementById('ready-list');
+            const { data, error } = await supabaseClient
+                .from('alteration_tickets')
+                .select('*')
+                .eq('status', 'DONE')
+                .order('completed_at', { ascending: false });
+
+            if(error) return list.innerHTML = `<div style="text-align:center; color:red;">Error</div>`;
+            if(data.length === 0) return list.innerHTML = `<div style="text-align:center; color:#999; margin-top:50px;">No Completed Work Yet</div>`;
+
+            list.innerHTML = "";
+            data.forEach(item => {
+                const completedDate = new Date(item.completed_at);
+                const deleteDate = new Date(completedDate);
+                deleteDate.setDate(deleteDate.getDate() + DELETE_DAYS);
+                const now = new Date();
+                const timeLeftMs = deleteDate - now;
+                const daysLeft = Math.floor(timeLeftMs / (1000 * 60 * 60 * 24));
+                const hoursLeft = Math.floor((timeLeftMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+                list.innerHTML += `
+                <div class="ready-card">
+                    <div class="rc-head">
+                        <span class="bill-no">#${item.bill_number}</span>
+                        <span class="status-tag">READY</span>
+                    </div>
+                    <div class="rc-body">
+                        <div><i class="ri-calendar-event-line"></i> Del Date: ${new Date(item.delivery_date).toLocaleDateString('en-GB')}</div>
+                        <div style="color:var(--green); margin-top:2px;">
+                            <i class="ri-check-double-line"></i> Completed: ${completedDate.toLocaleString('en-GB')}
+                        </div>
+                    </div>
+                    <div class="rc-footer">
+                        <span class="countdown">Auto-delete in: ${daysLeft}d ${hoursLeft}h</span>
+                    </div>
+                </div>`;
+            });
+        }
+
+        // --- PENDING LIST LOGIC ---
+        async function openPending() {
+            document.getElementById('pending-modal').style.display = 'flex';
+            history.pushState(null, null, location.href); // Push state
+            const list = document.getElementById('pending-list-container');
+            list.innerHTML = '<div style="text-align:center; padding:20px;">Loading Master Data...</div>';
+
+            const { data, error } = await supabaseClient
+                .from('alteration_tickets')
+                .select('*')
+                .eq('status', 'PENDING')
+                .order('delivery_date', { ascending: true });
+
+            if(error || data.length === 0) {
+                list.innerHTML = '<div style="text-align:center; color:#999; margin-top:50px;">Master Ji is Free! 🎉</div>';
+                return;
+            }
+
+            list.innerHTML = "";
+            const today = new Date(); today.setHours(0,0,0,0);
+
+            data.forEach(item => {
+                const delDate = new Date(item.delivery_date);
+                const diffTime = delDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let tintClass = 'tint-green';
+                let msg = `${diffDays} days left`;
+
+                if (diffDays < 0) { tintClass = 'tint-red'; msg = `OVERDUE`; }
+                else if (diffDays <= 2) { tintClass = 'tint-red'; msg = `URGENT (${diffDays} days)`; }
+                else if (diffDays <= 5) { tintClass = 'tint-orange'; msg = `${diffDays} days left`; }
+
+                list.innerHTML += `
+                <div class="job-card ${tintClass}">
+                    <div class="job-info">
+                        <h3>#${item.bill_number}</h3>
+                        <div class="job-date">
+                            <i class="ri-calendar-line"></i> ${new Date(item.delivery_date).toLocaleDateString('en-GB')}
+                            <span class="days-badge">${msg}</span>
+                        </div>
+                    </div>
+                    </div>`;
+            });
+        }
+
+        function closePending() {
+            document.getElementById('pending-modal').style.display = 'none';
+        }
+
+    </script>
+</body>
+</html>
